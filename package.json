@@ -86,6 +86,12 @@
           "default": false,
           "description": "Specifies whether to use double quotes"
         },
+        "autoimport.semicolon": {
+          "type": "boolean",
+          "default": true,
+          "description": "Specifies whether to use a semicolon at the end of the line"
+
+        },
         "autoimport.spaceBetweenBraces": {
           "type": "boolean",
           "default": true,
