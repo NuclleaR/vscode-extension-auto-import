@@ -10,6 +10,7 @@ import { NodeUpload } from './node-upload';
 export class AutoImport {
 
     public static statusBar;
+    private _executing: Promise<void>;
 
     constructor(private context: vscode.ExtensionContext) { }
 
@@ -33,21 +34,21 @@ export class AutoImport {
             let scanner = new ImportScanner(vscode.workspace.getConfiguration('autoimport'))
 
             if (request.showOutput) {
-                scanner.scan(request);
+                return scanner.scan(request);
             } else if (request.edit) {
-                scanner.edit(request);
+                return scanner.edit(request);
             }
             else if (request.delete) {
-                scanner.delete(request);
+                return scanner.delete(request);
             }
         });
 
         let nodeScanner = vscode.commands.registerCommand('extension.scanNodeModules', () => {
-            new NodeUpload(vscode.workspace.getConfiguration('autoimport')).scanNodeModules();
+            return new NodeUpload(vscode.workspace.getConfiguration('autoimport')).scanNodeModules();
         });
 
         let importFixer = vscode.commands.registerCommand('extension.fixImport', (d, r, c, t, i) => {
-            new ImportFixer().fix(d, r, c, t, i);
+            return new ImportFixer().fix(d, r, c, t, i);
         });
 
         let completetion = vscode.languages.registerCompletionItemProvider(['javascript', 'javascriptreact', 'typescript', 'typescriptreact'], new ImportCompletion(this.context, vscode.workspace.getConfiguration('autoimport').get<boolean>('autoComplete')), '');
@@ -68,18 +69,24 @@ export class AutoImport {
         let watcher = vscode.workspace.createFileSystemWatcher(glob);
 
         watcher.onDidChange((file: vscode.Uri) => {
-            vscode.commands
-                .executeCommand('extension.importScan', { file, edit: true });
+            if (!this._executing) {
+                this._handleExecution(vscode.commands
+                    .executeCommand('extension.importScan', { file, edit: true }));
+            }
         })
 
         watcher.onDidCreate((file: vscode.Uri) => {
-            vscode.commands
-                .executeCommand('extension.importScan', { file, edit: true });
+            if (!this._executing) {
+                this._handleExecution(vscode.commands
+                    .executeCommand('extension.importScan', { file, edit: true }));
+            }
         })
 
         watcher.onDidDelete((file: vscode.Uri) => {
-            vscode.commands
-                .executeCommand('extension.importScan', { file, delete: true });
+            if (!this._executing) {
+                this._handleExecution(vscode.commands
+                    .executeCommand('extension.importScan', { file, delete: true }));
+            }
         })
 
     }
@@ -104,5 +111,16 @@ export class AutoImport {
 
     public static setStatusBar() {
         AutoImport.statusBar.text = `{..} : ${ImportDb.count}`;
+    }
+
+    private _clearExecuting() {
+        this._executing = undefined;
+    }
+
+    private _handleExecution(executePromise) {
+        this._executing = executePromise;
+        executePromise
+            .then(this._clearExecuting.bind(this))
+            .catch(this._clearExecuting.bind(this));
     }
 }

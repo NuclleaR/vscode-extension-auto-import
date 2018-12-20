@@ -26,7 +26,7 @@ export class ImportScanner {
         this.higherOrderComponents = this.config.get<string>('higherOrderComponents');
     }
 
-    public scan(request: any): void {
+    public scan(request: any): Thenable<any> {
 
         this.showOutput = request.showOutput ? request.showOutput : false;
 
@@ -34,29 +34,30 @@ export class ImportScanner {
             this.scanStarted = new Date();
         }
 
-        vscode.workspace
-            .findFiles(this.filesToScan, '**/node_modules/**', 99999)
-            .then((files) => this.processWorkspaceFiles(files));
-
-        vscode.commands
-            .executeCommand('extension.scanNodeModules');
+        return vscode.workspace
+                .findFiles(this.filesToScan, '**/node_modules/**', 99999)
+                .then((files) => this.processWorkspaceFiles(files))
+                .then(() => 
+                    vscode.commands
+                        .executeCommand('extension.scanNodeModules')
+                );
 
     }
 
-    public edit(request: any): void {
+    public edit(request: any): Thenable<any> {
         ImportDb.delete(request);
         this.loadFile(request.file, true);
-        new NodeUpload(vscode.workspace.getConfiguration('autoimport')).scanNodeModules();
-
+        return new NodeUpload(vscode.workspace.getConfiguration('autoimport')).scanNodeModules();
     }
 
-    public delete(request: any): void {
+    public delete(request: any): Thenable<void> {
         ImportDb.delete(request);
         AutoImport.setStatusBar();
+        return Promise.resolve();
     }
 
 
-    private processWorkspaceFiles(files: vscode.Uri[]): void {
+    private processWorkspaceFiles(files: vscode.Uri[]): Promise<void> {
         let pruned = files.filter((f) => {
             return f.fsPath.indexOf('typings') === -1 &&
                 f.fsPath.indexOf('node_modules') === -1 &&
@@ -64,33 +65,38 @@ export class ImportScanner {
                 f.fsPath.indexOf('jspm_packages') === -1;
         });
 
+        let readPromise: Promise<any> = Promise.resolve();
         pruned.forEach((f, i) => {
-            this.loadFile(f, i === (pruned.length - 1));
+            readPromise = readPromise.then(() => this.loadFile(f, i === (pruned.length - 1)));
         });
+        return readPromise;
     }
 
-    private loadFile(file: vscode.Uri, last: boolean): void {
-        FS.readFile(file.fsPath, 'utf8', (err, data) => {
+    private loadFile(file: vscode.Uri, last: boolean): Promise<any> {
+        return new Promise((resolve) => {
+            FS.readFile(file.fsPath, 'utf8', (err, data) => {
+                if (err) {
+                    resolve();
+                    return console.log(err);
+                }
 
-            if (err) {
-                return console.log(err);
-            }
+                this.processFile(data, file);
 
-            this.processFile(data, file);
+                if (last) {
+                    AutoImport.setStatusBar();
+                }
 
-            if (last) {
-                AutoImport.setStatusBar();
-            }
+                if (last && this.showOutput && this.showNotifications) {
+                    this.scanEnded = new Date();
 
-            if (last && this.showOutput && this.showNotifications) {
-                this.scanEnded = new Date();
+                    let str = `[AutoImport] cache creation complete - (${Math.abs(<any>this.scanStarted - <any>this.scanEnded)}ms)`;
 
-                let str = `[AutoImport] cache creation complete - (${Math.abs(<any>this.scanStarted - <any>this.scanEnded)}ms)`;
+                    vscode.window
+                        .showInformationMessage(str);
+                }
 
-                vscode.window
-                    .showInformationMessage(str);
-            }
-
+                resolve();
+            });
         });
     }
 

@@ -16,6 +16,7 @@ Forker from old repo [vscode-extension-auto-import](https://github.com/martinopp
 * [zhaoshengjun](https://github.com/zhaoshengjun)
 * [soates](https://github.com/soates)
 * [third774](https://github.com/third774)
+* [benkaiser](https://github.com/benkaiser)
 
 ----
 
@@ -34,6 +35,11 @@ Forker from old repo [vscode-extension-auto-import](https://github.com/martinopp
 ----
 
 ## Changelog
+
+### 1.4.4
+
+- Make file reading files synchonous to avoid hammering the filesystem.
+- Ensure only one scan process is operating at a time.
 
 ### 1.4.2
 

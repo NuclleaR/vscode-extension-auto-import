@@ -17,7 +17,7 @@ export class NodeUpload {
     }
 
     public scanNodeModules() {
-        this.getMappings().then((mappings) => {
+        return this.getMappings().then((mappings) => {
             for (let key in mappings) {
                 let map = mappings[key];
                 if (map) {
@@ -41,46 +41,53 @@ export class NodeUpload {
                 }
             };
 
-            vscode.workspace.findFiles(this.filesToScan, '**/node_modules/**', 99999).then((files) => {
+            return vscode.workspace.findFiles(this.filesToScan, '**/node_modules/**', 99999).then((files) => {
+                let readPromise: Promise<any> = Promise.resolve();
                 files.forEach((f, i) => {
-                    FS.readFile(f.fsPath, 'utf8', (err, data) => {
-                        if (err) {
-                            return console.log(err);
-                        }
+                    readPromise = readPromise.then(() => {
+                        return new Promise((innerResolve) => {
+                            FS.readFile(f.fsPath, 'utf8', (err, data) => {
+                                if (err) {
+                                    return console.log(err);
+                                }
 
-                        let matches = data.match(/\bimport\s+(?:.+\s+from\s+)?[\'"]([^"\']+)["\']/g);
-                        if (matches) {
-                            matches.forEach(m => {
-                                if (m.indexOf('./') === -1 && m.indexOf('!') === -1) {
-                                    let exports = m.match(/\bimport\s+(?:.+\s+from\s+)/),
-                                        location = m.match(/[\'"]([^"\']+)["\']/g);
+                                let matches = data.match(/\bimport\s+(?:.+\s+from\s+)?[\'"]([^"\']+)["\']/g);
+                                if (matches) {
+                                    matches.forEach(m => {
+                                        if (m.indexOf('./') === -1 && m.indexOf('!') === -1) {
+                                            let exports = m.match(/\bimport\s+(?:.+\s+from\s+)/),
+                                                location = m.match(/[\'"]([^"\']+)["\']/g);
 
-                                    if (exports && location) {
-                                        let exportArray = exports[0]
-                                            .replace('import', '')
-                                            .replace('{', '')
-                                            .replace('}', '')
-                                            .replace('from', '')
-                                            .split(',')
-                                            .map(e => {
-                                                e = e.replace(/\s/g, ''); return e;
-                                            })
+                                            if (exports && location) {
+                                                let exportArray = exports[0]
+                                                    .replace('import', '')
+                                                    .replace('{', '')
+                                                    .replace('}', '')
+                                                    .replace('from', '')
+                                                    .split(',')
+                                                    .map(e => {
+                                                        e = e.replace(/\s/g, ''); return e;
+                                                    })
 
-                                        mapArrayToLocation(exportArray, location[0].replace("'", '')
-                                            .replace("'", ""));
+                                                mapArrayToLocation(exportArray, location[0].replace("'", '')
+                                                    .replace("'", ""));
+                                            }
+                                        }
+                                    });
+                                }
+
+                                if (i == (files.length - 1)) {
+                                    for (let key in mappings) {
+                                        if (mappings.hasOwnProperty(key)) {
+                                            mappings[key] = _.uniq(mappings[key]);
+                                        }
                                     }
+                                    console.log('resolving mappings');
+                                    return resolve(mappings);
                                 }
+                                innerResolve();
                             });
-                        }
-
-                        if (i == (files.length - 1)) {
-                            for (let key in mappings) {
-                                if (mappings.hasOwnProperty(key)) {
-                                    mappings[key] = _.uniq(mappings[key]);
-                                }
-                            }
-                            return resolve(mappings);
-                        }
+                        });
                     });
                 });
             });

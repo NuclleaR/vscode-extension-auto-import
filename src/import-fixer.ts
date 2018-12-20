@@ -18,11 +18,11 @@ export class ImportFixer {
     }
 
     public fix(document: vscode.TextDocument, range: vscode.Range,
-        context: vscode.CodeActionContext, token: vscode.CancellationToken, imports: Array<ImportObject>): void {
+        context: vscode.CodeActionContext, token: vscode.CancellationToken, imports: Array<ImportObject>): Thenable<boolean> {
 
         let edit = this.getTextEdit(document, imports);
 
-        vscode.workspace.applyEdit(edit);
+        return vscode.workspace.applyEdit(edit);
     }
 
     public getTextEdit(document: vscode.TextDocument, imports: Array<ImportObject>) {
