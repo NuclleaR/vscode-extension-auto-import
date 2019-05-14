@@ -103,11 +103,8 @@ export class ImportScanner {
         if (matches != null) {
             matches.forEach(m => {
                 //this allows us to reliably gets the last string (not splitting on spaces)
+                regExp.lastIndex = 0;
                 const mArr = regExp.exec(m);
-                if(mArr === null){
-                    //this is a weird situation that shouldn't ever happen. but does?
-                    return;
-                }
                 const workingFile: string = mArr[mArr.length - 1];
                 const isDefault = m.indexOf('default') !== -1;
                 ImportDb.saveImport(workingFile, data, file, isDefault, null);
