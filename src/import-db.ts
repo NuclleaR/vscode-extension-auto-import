@@ -80,8 +80,10 @@ export class ImportDb {
 
         let exists = ImportDb.imports.findIndex(m => m.name === obj.name && m.file.fsPath === file.fsPath);
 
-        if (exists === -1) {
+        if (exists === -1 || ImportDb.imports[exists].isDefault) {
             ImportDb.imports.push(obj);
+        } else {
+            ImportDb.imports.splice(exists, 0, obj);
         }
 
     }

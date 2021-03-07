@@ -103,6 +103,7 @@ export class ImportScanner {
         if (matches != null) {
             matches.forEach(m => {
                 //this allows us to reliably gets the last string (not splitting on spaces)
+                regExp.lastIndex = 0 // reset regExp state (this is what causes the below "weird situation" making every other exec fail because it uses the last match index)
                 const mArr = regExp.exec(m);
                 if(mArr === null){
                     //this is a weird situation that shouldn't ever happen. but does?
